@@ -23,6 +23,7 @@ function PasskeyTest() {
             setMessage(verifyRes.data.success ? '✅ Registered successfully!' : '❌ Registration failed.');
         } catch (err) {
             setMessage('❌ Error: ' + err.message);
+            console.log(err);
         }
     };
 
@@ -33,11 +34,14 @@ function PasskeyTest() {
             const { data: options } = await axios.post(`${backendURL}/auth/generate-authentication-options`, { username });
             console.log('Authentication options:', options);
             
+            
             const assertionResponse = await startAuthentication(options);
             const verifyRes = await axios.post(`${backendURL}/auth/verify-authentication`, { username, assertionResponse });
             setMessage(verifyRes.data.success ? '🎉 Logged in successfully!' : '❌ Login failed.');
         } catch (err) {
             setMessage('❌ Error: ' + err.message);
+            console.log(err);
+            
         }
     };
 
