@@ -1,0 +1,64 @@
+import React, { useState } from 'react';
+import axios from 'axios';
+import {
+    startRegistration,
+    startAuthentication,
+} from '@simplewebauthn/browser';
+
+function PasskeyTest() {
+    const [username, setUsername] = useState('');
+    const [message, setMessage] = useState('');
+
+    const backendURL = 'http://localhost:4000/auth';
+
+    // --- Registration ---
+    const handleRegister = async () => {
+        try {
+            console.log('Requesting registration options for', username);
+
+            const { data: options } = await axios.post(`${backendURL}/generate-registration-options`, { username });
+            console.log('Registration options:', options);
+            const attestationResponse = await startRegistration(options);
+            const verifyRes = await axios.post(`${backendURL}/verify-registration`, { username, attestationResponse });
+            setMessage(verifyRes.data.success ? '✅ Registered successfully!' : '❌ Registration failed.');
+        } catch (err) {
+            setMessage('❌ Error: ' + err.message);
+        }
+    };
+
+    // --- Login ---
+    const handleLogin = async () => {
+        try {
+            console.log('Requesting registration options for', username);
+            const { data: options } = await axios.post(`${backendURL}/generate-authentication-options`, { username });
+            console.log('Authentication options:', options);
+            
+            const assertionResponse = await startAuthentication(options);
+            const verifyRes = await axios.post(`${backendURL}/verify-authentication`, { username, assertionResponse });
+            setMessage(verifyRes.data.success ? '🎉 Logged in successfully!' : '❌ Login failed.');
+        } catch (err) {
+            setMessage('❌ Error: ' + err.message);
+        }
+    };
+
+    return (
+        <div style={{ textAlign: 'center', marginTop: '50px' }}>
+            <h2>🔐 Passkey Demo (Vite + React)</h2>
+            <input
+                type="text"
+                placeholder="Enter username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+            />
+            <div style={{ marginTop: '20px' }}>
+                <button onClick={handleRegister}>Register with Passkey</button>
+                <button onClick={handleLogin} style={{ marginLeft: '10px' }}>
+                    Login with Passkey
+                </button>
+            </div>
+            <p>{message}</p>
+        </div>
+    );
+}
+
+export default PasskeyTest;
