@@ -30,11 +30,11 @@ function PasskeyTest() {
     const handleLogin = async () => {
         try {
             console.log('Requesting registration options for', username);
-            const { data: options } = await axios.post(`${backendURL}/generate-authentication-options`, { username });
+            const { data: options } = await axios.post(`${backendURL}/auth/generate-authentication-options`, { username });
             console.log('Authentication options:', options);
             
             const assertionResponse = await startAuthentication(options);
-            const verifyRes = await axios.post(`${backendURL}/verify-authentication`, { username, assertionResponse });
+            const verifyRes = await axios.post(`${backendURL}/auth/verify-authentication`, { username, assertionResponse });
             setMessage(verifyRes.data.success ? '🎉 Logged in successfully!' : '❌ Login failed.');
         } catch (err) {
             setMessage('❌ Error: ' + err.message);
