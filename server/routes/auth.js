@@ -53,11 +53,11 @@ router.post('/generate-registration-options', async (req, res) => {
       rpID: process.env.RP_ID, // 👈 from .env
       userID: Buffer.from(user._id.toString(), 'utf8'),
       userName: user.username,
-      authenticatorSelection: {
-        authenticatorAttachment: 'platform', // Prefer Windows Hello / Touch ID
-        residentKey: 'preferred',
-        userVerification: 'required',
-      },
+      // authenticatorSelection: {
+      //   authenticatorAttachment: 'platform', // Prefer Windows Hello / Touch ID
+      //   residentKey: 'preferred',
+      //   userVerification: 'required',
+      // },
     });
 
     console.log('Generate options for', username, 'challenge=', options.challenge);
