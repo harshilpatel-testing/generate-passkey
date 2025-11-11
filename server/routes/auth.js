@@ -7,6 +7,7 @@ import {
 } from '@simplewebauthn/server';
 import User from '../models/user.js';
 import Challenge from '../models/challenge.js';
+import { toBase64URL, fromBase64URL } from '../utils/encoding.js';
 
 
 const router = express.Router();
@@ -53,8 +54,6 @@ router.post('/generate-authentication-options', async (req, res) => {
     console.log('Username:', username);
     console.log('User found:', user);
     console.log('User credentials:', user?.credentials);
-    const fromBase64URL = (base64url) =>
-      Buffer.from(base64url.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
 
     const options = await generateAuthenticationOptions({
       rpID: process.env.RP_ID,
@@ -100,8 +99,8 @@ router.post('/verify-authentication', async (req, res) => {
       expectedOrigin: process.env.expectedOrigin,
       expectedRPID: process.env.rpID,
       authenticator: {
-        credentialPublicKey: Buffer.from(dbAuthenticator.publicKey, 'base64'),
-        credentialID: Buffer.from(dbAuthenticator.credentialID, 'base64'),
+        credentialPublicKey: Buffer.from(dbAuthenticator.publicKey, 'base64url'),
+        credentialID: Buffer.from(dbAuthenticator.credentialID, 'base64url'),
         counter: dbAuthenticator.counter,
       },
     });
@@ -190,13 +189,6 @@ router.post('/verify-registration', async (req, res) => {
     if (verification.verified) {
       const { credential } = verification.registrationInfo;
       const user = await User.findOne({ username });
-      const toBase64URL = (buffer) =>
-        Buffer.from(buffer)
-          .toString('base64')
-          .replace(/\+/g, '-')
-          .replace(/\//g, '_')
-          .replace(/=+$/, '');
-
       user.credentials.push({
         credentialID: toBase64URL(credential.id),
         publicKey: toBase64URL(credential.publicKey),
