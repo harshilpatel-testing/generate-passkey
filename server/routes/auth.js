@@ -140,7 +140,7 @@ router.post('/generate-authentication-options', async (req, res) => {
     const options = await generateAuthenticationOptions({
       rpID: process.env.RP_ID,
       allowCredentials: user.credentials.map((cred) => ({
-        id: fromBase64URL(cred.credentialID),
+        id: cred.credentialID, // already a Base64URL string ✅
         type: 'public-key',
         transports: ['internal', 'hybrid', 'usb', 'ble', 'nfc'],
       })),
