@@ -181,6 +181,7 @@ router.post('/verify-authentication', async (req, res) => {
       },
     });
 
+    
     if (verification.verified) {
       dbAuthenticator.counter = verification.authenticationInfo.newCounter;
       await user.save();
