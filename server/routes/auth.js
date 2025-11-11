@@ -55,6 +55,7 @@ router.post('/generate-authentication-options', async (req, res) => {
     console.log('User credentials:', user?.credentials);
 
     const options = await generateAuthenticationOptions({
+      rpID: process.env.RP_ID,
       allowCredentials: user.credentials.map(cred => ({
         id: cred.credentialID,
         type: 'public-key',
@@ -135,6 +136,7 @@ router.post('/generate-registration-options', async (req, res) => {
 
     const options = await generateRegistrationOptions({
       rpName: 'WebAuthn Demo',
+       rpID: process.env.RP_ID,
       userID: Buffer.from(user._id.toString(), 'utf8'),
       userName: user.username,
     });
@@ -171,8 +173,8 @@ router.post('/verify-registration', async (req, res) => {
     const verification = await verifyRegistrationResponse({
       response: attestationResponse,
       expectedChallenge,
-      expectedOrigin: process.env.expectedOrigin, // React dev server
-      expectedRPID: process.env.rpID,
+      expectedOrigin: process.env.EXPECTED_ORIGIN,
+      expectedRPID: process.env.RP_ID,
     });
 
     console.log('Verification result:', verification);

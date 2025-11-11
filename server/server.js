@@ -11,6 +11,7 @@ app.use(cors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:5173', 
     credentials: true,
 }));
+
 app.use(bodyParser.json());
 
 const PORT = process.env.PORT || 4000;

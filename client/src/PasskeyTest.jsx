@@ -9,7 +9,7 @@ function PasskeyTest() {
     const [username, setUsername] = useState('');
     const [message, setMessage] = useState('');
 
-    const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000/auth';
+    const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
 
     // --- Registration ---
     const handleRegister = async () => {
