@@ -139,6 +139,11 @@ router.post('/generate-registration-options', async (req, res) => {
        rpID: process.env.RP_ID,
       userID: Buffer.from(user._id.toString(), 'utf8'),
       userName: user.username,
+      authenticatorSelection:{
+        residentKey: 'preferred',
+        userVerification: 'preferred',
+        authenticatorAttachment: 'platform'
+      }
     });
 
     // console.log('Generated registration options:', options);
