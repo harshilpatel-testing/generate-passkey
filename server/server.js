@@ -24,6 +24,10 @@ const startServer = async () => {
         });
         console.log('✅ MongoDB connected');
 
+        app.get('/', (req, res) => {
+            res.send('Welcome to the Passkey Authentication Server');
+        });
+
         app.use('/auth', authRoutes);
 
         app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
