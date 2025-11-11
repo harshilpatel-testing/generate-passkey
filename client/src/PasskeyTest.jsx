@@ -41,7 +41,6 @@ function PasskeyTest() {
         } catch (err) {
             setMessage('❌ Error: ' + err.message);
             console.log(err);
-            
         }
     };
 

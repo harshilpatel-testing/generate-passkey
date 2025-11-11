@@ -31,7 +31,7 @@ router.post('/create', async (req, res) => {
     res.status(201).json({ success: true, message: 'User created successfully', user: newUser });
   } catch (error) {
     console.error('Error creating user:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error', error });
   }
 });
 
@@ -72,7 +72,7 @@ router.post('/generate-registration-options', async (req, res) => {
     res.json(options);
   } catch (err) {
     console.error('Error in /generate-registration-options:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err});
   }
 });
 
@@ -112,7 +112,7 @@ router.post('/verify-registration', async (req, res) => {
     }
   } catch (err) {
     console.error('Verify registration error:', err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err });
   }
 });
 
@@ -152,7 +152,7 @@ router.post('/generate-authentication-options', async (req, res) => {
     res.json(options);
   } catch (error) {
     console.error('Error in /generate-authentication-options:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error', error });
   }
 });
 
@@ -192,7 +192,7 @@ router.post('/verify-authentication', async (req, res) => {
     res.status(400).json({ success: false, message: 'Authentication failed' });
   } catch (error) {
     console.error('Error in /verify-authentication:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error', error });
   }
 });
 
