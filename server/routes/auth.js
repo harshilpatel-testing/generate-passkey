@@ -53,11 +53,13 @@ router.post('/generate-authentication-options', async (req, res) => {
     console.log('Username:', username);
     console.log('User found:', user);
     console.log('User credentials:', user?.credentials);
+    const fromBase64URL = (base64url) =>
+      Buffer.from(base64url.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
 
     const options = await generateAuthenticationOptions({
       rpID: process.env.RP_ID,
-      allowCredentials: user.credentials.map(cred => ({
-        id: cred.credentialID,
+      allowCredentials: user.credentials.map((cred) => ({
+        id: fromBase64URL(cred.credentialID),
         type: 'public-key',
         transports: ['internal', 'hybrid', 'usb', 'ble', 'nfc'],
       })),
@@ -136,10 +138,10 @@ router.post('/generate-registration-options', async (req, res) => {
 
     const options = await generateRegistrationOptions({
       rpName: 'WebAuthn Demo',
-       rpID: process.env.RP_ID,
+      rpID: process.env.RP_ID,
       userID: Buffer.from(user._id.toString(), 'utf8'),
       userName: user.username,
-      authenticatorSelection:{
+      authenticatorSelection: {
         residentKey: 'preferred',
         userVerification: 'preferred',
         authenticatorAttachment: 'platform'
@@ -188,9 +190,16 @@ router.post('/verify-registration', async (req, res) => {
     if (verification.verified) {
       const { credential } = verification.registrationInfo;
       const user = await User.findOne({ username });
+      const toBase64URL = (buffer) =>
+        Buffer.from(buffer)
+          .toString('base64')
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+
       user.credentials.push({
-        credentialID: Buffer.from(credential.id).toString('base64'),
-        publicKey: Buffer.from(credential.publicKey).toString('base64'),
+        credentialID: toBase64URL(credential.id),
+        publicKey: toBase64URL(credential.publicKey),
         counter: credential.counter,
       });
       await user.save();
