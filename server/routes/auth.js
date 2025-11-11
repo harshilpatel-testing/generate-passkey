@@ -3,19 +3,15 @@ import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
   generateAuthenticationOptions,
-  verifyAuthenticationResponse
+  verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
 import User from '../models/user.js';
 import Challenge from '../models/challenge.js';
-import { toBase64URL, fromBase64URL } from '../utils/encoding.js';
-
+import { toBase64URL, fromBase64URL } from '../utils/encoding.js'; // 👈 import helpers
 
 const router = express.Router();
 
-// Store challenges temporarily in-memory (for demo)
-// const userChallenges = new Map();
-
-// Create new user manually
+/* ----------------------  CREATE USER  ---------------------- */
 router.post('/create', async (req, res) => {
   try {
     const { username } = req.body;
@@ -24,13 +20,11 @@ router.post('/create', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Username is required' });
     }
 
-    // Check if user already exists
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
-    // Create new user with no credentials yet
     const newUser = new User({ username, credentials: [] });
     await newUser.save();
 
@@ -41,88 +35,7 @@ router.post('/create', async (req, res) => {
   }
 });
 
-
-router.post('/generate-authentication-options', async (req, res) => {
-  try {
-    const { username } = req.body;
-    const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    if (!user.credentials || user.credentials.length === 0) {
-      return res.status(400).json({ success: false, message: 'User has no registered credentials' });
-    }
-    console.log('Username:', username);
-    console.log('User found:', user);
-    console.log('User credentials:', user?.credentials);
-
-    const options = await generateAuthenticationOptions({
-      rpID: process.env.RP_ID,
-      allowCredentials: user.credentials.map((cred) => ({
-        id: fromBase64URL(cred.credentialID),
-        type: 'public-key',
-        transports: ['internal', 'hybrid', 'usb', 'ble', 'nfc'],
-      })),
-      userVerification: 'preferred',
-    });
-
-
-    console.log('Generate options for', username, 'challenge=', options.challenge);
-    // Save challenge to MongoDB
-    await Challenge.findOneAndUpdate(
-      { username },
-      { challenge: options.challenge },
-      { upsert: true, new: true }
-    );
-    console.log('Saved challenge for', username);
-    res.json(options);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-router.post('/verify-authentication', async (req, res) => {
-  try {
-    const { username, assertionResponse } = req.body;
-    const user = await User.findOne({ username });
-    const record = await Challenge.findOne({ username });
-    const expectedChallenge = record?.challenge;
-
-    if (!user || !expectedChallenge) {
-      return res.status(400).json({ success: false, message: 'No challenge found' });
-    }
-
-    const dbAuthenticator = user.credentials[0]; // demo: assume one credential
-    const verification = await verifyAuthenticationResponse({
-      response: assertionResponse,
-      expectedChallenge,
-      expectedOrigin: process.env.expectedOrigin,
-      expectedRPID: process.env.rpID,
-      authenticator: {
-        credentialPublicKey: Buffer.from(dbAuthenticator.publicKey, 'base64url'),
-        credentialID: Buffer.from(dbAuthenticator.credentialID, 'base64url'),
-        counter: dbAuthenticator.counter,
-      },
-    });
-
-    if (verification.verified) {
-      dbAuthenticator.counter = verification.authenticationInfo.newCounter;
-      await user.save();
-      await Challenge.deleteOne({ username });
-
-      // (optional) issue JWT for session
-      // const token = jwt.sign({ userId: user._id }, 'secretkey', { expiresIn: '1h' });
-      return res.json({ success: true, token });
-    }
-
-    res.status(400).json({ success: false, message: 'Authentication failed' });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-
+/* ----------------------  REGISTRATION START  ---------------------- */
 router.post('/generate-registration-options', async (req, res) => {
   try {
     const { username } = req.body;
@@ -137,27 +50,25 @@ router.post('/generate-registration-options', async (req, res) => {
 
     const options = await generateRegistrationOptions({
       rpName: 'WebAuthn Demo',
-      rpID: process.env.RP_ID,
+      rpID: process.env.RP_ID, // 👈 from .env
       userID: Buffer.from(user._id.toString(), 'utf8'),
       userName: user.username,
       authenticatorSelection: {
+        authenticatorAttachment: 'platform', // Prefer Windows Hello / Touch ID
         residentKey: 'preferred',
-        userVerification: 'preferred',
-        authenticatorAttachment: 'platform'
-      }
+        userVerification: 'required',
+      },
     });
 
-    // console.log('Generated registration options:', options);
     console.log('Generate options for', username, 'challenge=', options.challenge);
 
     await Challenge.findOneAndUpdate(
       { username },
       { challenge: options.challenge },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
 
     console.log('Saved challenge for', username);
-
     res.json(options);
   } catch (err) {
     console.error('Error in /generate-registration-options:', err);
@@ -165,15 +76,13 @@ router.post('/generate-registration-options', async (req, res) => {
   }
 });
 
+/* ----------------------  REGISTRATION VERIFY  ---------------------- */
 router.post('/verify-registration', async (req, res) => {
   const { username, attestationResponse } = req.body;
-  console.log('Verify registration for', username, 'incomingChallenge=', attestationResponse?.response?.clientDataJSON);
+  console.log('Verifying registration for:', username);
+
   const record = await Challenge.findOne({ username });
-  console.log('Found challenge record:', record);
   const expectedChallenge = record?.challenge;
-
-  console.log(attestationResponse);
-
 
   try {
     const verification = await verifyRegistrationResponse({
@@ -185,26 +94,105 @@ router.post('/verify-registration', async (req, res) => {
 
     console.log('Verification result:', verification);
 
-
     if (verification.verified) {
       const { credential } = verification.registrationInfo;
       const user = await User.findOne({ username });
+
       user.credentials.push({
         credentialID: toBase64URL(credential.id),
         publicKey: toBase64URL(credential.publicKey),
         counter: credential.counter,
       });
+
       await user.save();
-      res.json({ success: true });
-
       await Challenge.deleteOne({ username });
-
+      res.json({ success: true });
     } else {
       res.status(400).json({ success: false, message: 'Verification failed' });
     }
   } catch (err) {
-    console.error(err);
+    console.error('Verify registration error:', err);
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ----------------------  AUTHENTICATION START  ---------------------- */
+router.post('/generate-authentication-options', async (req, res) => {
+  try {
+    const { username } = req.body;
+    const user = await User.findOne({ username });
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user.credentials || user.credentials.length === 0) {
+      return res.status(400).json({ success: false, message: 'User has no registered credentials' });
+    }
+
+    console.log('Username:', username);
+    console.log('User found:', user);
+    console.log('User credentials:', user.credentials);
+
+    const options = await generateAuthenticationOptions({
+      rpID: process.env.RP_ID,
+      allowCredentials: user.credentials.map((cred) => ({
+        id: fromBase64URL(cred.credentialID),
+        type: 'public-key',
+        transports: ['internal', 'hybrid', 'usb', 'ble', 'nfc'],
+      })),
+      userVerification: 'preferred',
+    });
+
+    console.log('Generate options for', username, 'challenge=', options.challenge);
+
+    await Challenge.findOneAndUpdate(
+      { username },
+      { challenge: options.challenge },
+      { upsert: true, new: true },
+    );
+
+    res.json(options);
+  } catch (error) {
+    console.error('Error in /generate-authentication-options:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+/* ----------------------  AUTHENTICATION VERIFY  ---------------------- */
+router.post('/verify-authentication', async (req, res) => {
+  try {
+    const { username, assertionResponse } = req.body;
+    const user = await User.findOne({ username });
+    const record = await Challenge.findOne({ username });
+    const expectedChallenge = record?.challenge;
+
+    if (!user || !expectedChallenge) {
+      return res.status(400).json({ success: false, message: 'No challenge found' });
+    }
+
+    const dbAuthenticator = user.credentials[0]; // demo: one credential per user
+    const verification = await verifyAuthenticationResponse({
+      response: assertionResponse,
+      expectedChallenge,
+      expectedOrigin: process.env.EXPECTED_ORIGIN,
+      expectedRPID: process.env.RP_ID,
+      authenticator: {
+        credentialPublicKey: fromBase64URL(dbAuthenticator.publicKey),
+        credentialID: fromBase64URL(dbAuthenticator.credentialID),
+        counter: dbAuthenticator.counter,
+      },
+    });
+
+    if (verification.verified) {
+      dbAuthenticator.counter = verification.authenticationInfo.newCounter;
+      await user.save();
+      await Challenge.deleteOne({ username });
+
+      return res.json({ success: true });
+    }
+
+    res.status(400).json({ success: false, message: 'Authentication failed' });
+  } catch (error) {
+    console.error('Error in /verify-authentication:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
