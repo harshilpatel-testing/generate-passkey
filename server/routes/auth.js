@@ -72,7 +72,7 @@ router.post('/generate-registration-options', async (req, res) => {
     res.json(options);
   } catch (err) {
     console.error('Error in /generate-registration-options:', err);
-    res.status(500).json({ error: err});
+    res.status(500).json({ error: err });
   }
 });
 
@@ -130,6 +130,12 @@ router.post('/generate-authentication-options', async (req, res) => {
     console.log('Username:', username);
     console.log('User found:', user);
     console.log('User credentials:', user.credentials);
+
+    console.log('User found:', user.username);
+    console.log('Credentials:', user.credentials);
+    user.credentials.forEach((cred, i) => {
+      console.log(`Credential ${i}:`, cred.credentialID);
+    });
 
     const options = await generateAuthenticationOptions({
       rpID: process.env.RP_ID,
