@@ -19,10 +19,7 @@ const PORT = process.env.PORT || 4000;
 // ✅ async wrapper ensures DB connection before server starts
 const startServer = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        });
+        await mongoose.connect(process.env.MONGO_URI);
         console.log('✅ MongoDB connected');
 
         app.get('/', (req, res) => {
