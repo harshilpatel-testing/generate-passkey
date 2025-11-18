@@ -73,14 +73,55 @@ router.post('/generate-registration-options', async (req, res) => {
 });
 
 /* ----------------------  REGISTRATION VERIFY  ---------------------- */
+// router.post('/verify-registration', async (req, res) => {
+//   const { username, attestationResponse } = req.body;
+//   console.log('Verifying registration for:', username);
+
+//   const user = await User.findOne({ username });
+
+//   // const record = await Challenge.findOne({ username });
+//   // const expectedChallenge = record?.challenge;
+
+//   if (!user) return res.json({ error: "User not found" })
+
+//   try {
+//     const verification = await verifyRegistrationResponse({
+//       response: attestationResponse,
+//       expectedChallenge: user.challenge,
+//       expectedOrigin: process.env.EXPECTED_ORIGIN,
+//       expectedRPID: process.env.RP_ID,
+//     });
+
+//     console.log('Verification result:', verification.registrationInfo.credential);
+
+//     if (verification.verified) {
+//       const { credential } = verification.registrationInfo;
+
+//       user.credentials.push({
+//         credentialID: base64url.encode(credential.id),
+//         publicKey: base64url.encode(credential.publicKey),
+//         counter: credential.counter,
+//       });
+
+//       user.challenge = '';
+
+//       await user.save();
+//       res.json({ success: true });
+//     } else {
+//       res.status(400).json({ success: false, message: 'Verification failed' });
+//     }
+//   } catch (err) {
+//     console.error('Verify registration error:', err);
+//     res.status(500).json({ success: false, message: err });
+//   }
+// });
+
+/* ----------------------  REGISTRATION VERIFY  ---------------------- */
 router.post('/verify-registration', async (req, res) => {
   const { username, attestationResponse } = req.body;
   console.log('Verifying registration for:', username);
 
   const user = await User.findOne({ username });
-
-  // const record = await Challenge.findOne({ username });
-  // const expectedChallenge = record?.challenge;
 
   if (!user) return res.json({ error: "User not found" })
 
@@ -92,20 +133,23 @@ router.post('/verify-registration', async (req, res) => {
       expectedRPID: process.env.RP_ID,
     });
 
-    console.log('Verification result:', verification.registrationInfo.credential);
-
     if (verification.verified) {
       const { credential } = verification.registrationInfo;
 
+      // Store the credential ID exactly as it comes from the response
+      // This ensures it matches what the browser will send later
+      const credentialID = attestationResponse.id;
+
       user.credentials.push({
-        credentialID: base64url.encode(credential.id),
+        credentialID: credentialID, // Store the exact ID from response
         publicKey: base64url.encode(credential.publicKey),
         counter: credential.counter,
       });
 
       user.challenge = '';
-
       await user.save();
+
+      console.log('✅ Registered credential ID:', credentialID);
       res.json({ success: true });
     } else {
       res.status(400).json({ success: false, message: 'Verification failed' });
@@ -115,6 +159,57 @@ router.post('/verify-registration', async (req, res) => {
     res.status(500).json({ success: false, message: err });
   }
 });
+
+/* ----------------------  AUTHENTICATION START  ---------------------- */
+// router.post('/generate-authentication-options', async (req, res) => {
+//   try {
+//     const { username } = req.body;
+//     const user = await User.findOne({ username });
+
+//     if (!user) return res.status(404).json({ message: 'User not found' });
+//     if (!user.credentials || user.credentials.length === 0) {
+//       return res.status(400).json({ success: false, message: 'User has no registered credentials' });
+//     }
+
+//     // console.log('Username:', username);
+//     // console.log('User found:', user);
+//     // console.log('User credentials:', user.credentials);
+
+//     console.log('User found:', user);
+//     // console.log('Credentials:', user.credentials);
+//     user.credentials.forEach((cred, i) => {
+//       console.log(`Credential ${i}:`, cred.credentialID);
+//     });
+
+//     const options = await generateAuthenticationOptions({
+//       rpID: process.env.RP_ID,
+//       // allowCredentials: user.credentials.map((cred) => ({
+//       //   id: cred.credentialID,
+//       //   type: 'public-key',
+//       //   transports: ['internal', 'hybrid', 'usb', 'ble', 'nfc'],
+//       // })),
+//       // userVerification: 'preferred',
+//     });
+
+//     console.log('Generate authenticate options for', username, 'challenge=', options.challenge);
+
+//     // const update = await Challenge.findOneAndUpdate(
+//     //   { username },
+//     //   { challenge: options.challenge },
+//     //   { upsert: true, new: true },
+//     // );
+
+//     user.challenge = options.challenge;
+//     await user.save();
+
+//     console.log("Updated challenge : ", user);
+
+//     res.json({ options });
+//   } catch (error) {
+//     console.error('Error in /generate-authentication-options:', error);
+//     res.status(500).json({ success: false, message: 'Server error', error });
+//   }
+// });
 
 /* ----------------------  AUTHENTICATION START  ---------------------- */
 router.post('/generate-authentication-options', async (req, res) => {
@@ -127,38 +222,22 @@ router.post('/generate-authentication-options', async (req, res) => {
       return res.status(400).json({ success: false, message: 'User has no registered credentials' });
     }
 
-    // console.log('Username:', username);
-    // console.log('User found:', user);
-    // console.log('User credentials:', user.credentials);
+    console.log('User found:', user.username);
+    console.log('Available credentials:', user.credentials.map(cred => ({
+      id: cred.credentialID,
+      length: cred.credentialID.length,
+      type: cred.credentialID.length > 30 ? 'Windows' : 'Android' // Rough guess
+    })));
 
-    console.log('User found:', user);
-    // console.log('Credentials:', user.credentials);
-    user.credentials.forEach((cred, i) => {
-      console.log(`Credential ${i}:`, cred.credentialID);
-    });
-
+    // Skip allowCredentials - let browser discover available passkeys
     const options = await generateAuthenticationOptions({
       rpID: process.env.RP_ID,
-      // allowCredentials: user.credentials.map((cred) => ({
-      //   id: cred.credentialID,
-      //   type: 'public-key',
-      //   transports: ['internal', 'hybrid', 'usb', 'ble', 'nfc'],
-      // })),
-      // userVerification: 'preferred',
+      // No allowCredentials - this allows all registered passkeys for the user
+      userVerification: 'preferred',
     });
-
-    console.log('Generate authenticate options for', username, 'challenge=', options.challenge);
-
-    // const update = await Challenge.findOneAndUpdate(
-    //   { username },
-    //   { challenge: options.challenge },
-    //   { upsert: true, new: true },
-    // );
 
     user.challenge = options.challenge;
     await user.save();
-
-    console.log("Updated challenge : ", user);
 
     res.json({ options });
   } catch (error) {
@@ -168,61 +247,136 @@ router.post('/generate-authentication-options', async (req, res) => {
 });
 
 /* ----------------------  AUTHENTICATION VERIFY  ---------------------- */
+// router.post('/verify-authentication', async (req, res) => {
+//   try {
+//     const { username, assertionResponse } = req.body;
+//     const user = await User.findOne({ username });
+//     // const record = await Challenge.findOne({ username });
+//     // const expectedChallenge = record?.challenge;
+
+//     if (!user || !user.challenge) {
+//       return res.status(400).json({ success: false, message: 'No challenge found' });
+//     }
+
+//     console.log("User found for verify authentication : ", user);
+//     // console.log("Challenge found for verify authentication : ", record);
+
+//     const credentialId = assertionResponse.id;
+
+//     const dbAuthenticator = user.credentials.find(
+//       cred => cred.credentialID === credentialId
+//     );
+
+//     console.log("Find credetial id : ", credentialId);
+//     console.log("Find credetial id one : ", dbAuthenticator);
+
+//     if (!dbAuthenticator) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Passkey not recognized'
+//       });
+//     }
+
+//     const authenticator = {
+//       credentialID: base64url.toBuffer(dbAuthenticator.credentialID),
+//       credentialPublicKey: base64url.toBuffer(dbAuthenticator.publicKey),
+//       counter: dbAuthenticator.counter,
+//     };
+//     const verification = await verifyAuthenticationResponse({
+//       expectedChallenge: user.challenge,
+//       response: assertionResponse,
+//       expectedOrigin: process.env.EXPECTED_ORIGIN,
+//       expectedRPID: process.env.RP_ID,
+//       credential: {
+//         id: authenticator.credentialID,
+//         publicKey: authenticator.credentialPublicKey,
+//         counter: user.credentials[0].counter
+//       }
+//     });
+
+//     console.log('Authentication verification result:', verification);
+//     if (!verification.verified) {
+//       res.status(400).json({ success: false, message: 'Authentication failed' });
+//     }
+
+//     user.challenge = '';
+
+//     await user.save();
+//     return res.json({ success: true });
+
+//   } catch (error) {
+//     console.error('Error in /verify-authentication:', error);
+//     res.status(500).json({ success: false, message: 'Server error', error });
+//   }
+// });
+
+/* ----------------------  AUTHENTICATION VERIFY  ---------------------- */
 router.post('/verify-authentication', async (req, res) => {
   try {
     const { username, assertionResponse } = req.body;
     const user = await User.findOne({ username });
-    // const record = await Challenge.findOne({ username });
-    // const expectedChallenge = record?.challenge;
 
     if (!user || !user.challenge) {
       return res.status(400).json({ success: false, message: 'No challenge found' });
     }
 
-    console.log("User found for verify authentication : ", user);
-    // console.log("Challenge found for verify authentication : ", record);
+    console.log("=== DEBUG AUTHENTICATION ===");
+    console.log("Assertion response ID:", assertionResponse.id);
+    console.log("User credentials count:", user.credentials.length);
+    
+    // Log all credential IDs for debugging
+    user.credentials.forEach((cred, index) => {
+      console.log(`DB Credential ${index}:`, cred.credentialID);
+    });
 
+    const credentialId = assertionResponse.id;
 
-    // const dbAuthenticator = user.credentials[0]; // demo: one credential per user
-    // console.log("dbAuthenticator : ", dbAuthenticator);
+    // Find the specific credential that matches this ID
+    const dbAuthenticator = user.credentials.find(
+      cred => cred.credentialID === credentialId
+    );
 
-    const authenticator = {
-      credentialID: base64url.toBuffer(user.credentials[0].credentialID),
-      credentialPublicKey: base64url.toBuffer(user.credentials[0].publicKey),
-      counter: user.credentials[0].counter,
-    };
+    if (!dbAuthenticator) {
+      console.log("❌ No matching credential found");
+      console.log("Looking for:", credentialId);
+      console.log("Available credentials:", user.credentials.map(c => c.credentialID));
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Passkey not recognized. No matching credential found.'
+      });
+    }
+
+    console.log("✅ Found matching credential");
 
     const verification = await verifyAuthenticationResponse({
       expectedChallenge: user.challenge,
       response: assertionResponse,
       expectedOrigin: process.env.EXPECTED_ORIGIN,
       expectedRPID: process.env.RP_ID,
-      // credential: {
-      //   publicKey: user.credentials[0].publicKey,
-      //   id: user.credentials[0].credentialID,
-      //   counter: user.credentials[0].counter,
-      // },
-      credential : {
-        id : authenticator.credentialID,
-        publicKey : authenticator.credentialPublicKey,
-        counter : user.credentials[0].counter
+      credential: {
+        id: base64url.toBuffer(dbAuthenticator.credentialID),
+        publicKey: base64url.toBuffer(dbAuthenticator.publicKey),
+        counter: dbAuthenticator.counter,
       }
     });
 
     console.log('Authentication verification result:', verification);
-    if (!verification.verified) {
-      res.status(400).json({ success: false, message: 'Authentication failed' });
+
+    if (verification.verified) {
+      // Update the counter for the specific authenticator that was used
+      dbAuthenticator.counter = verification.authenticationInfo.newCounter;
+      user.challenge = '';
+      await user.save();
+      
+      return res.json({ success: true, message: 'Authentication successful' });
+    } else {
+      return res.status(400).json({ success: false, message: 'Authentication failed' });
     }
-
-    user.challenge = '';
-
-    await user.save();
-    return res.json({ success: true });
 
   } catch (error) {
     console.error('Error in /verify-authentication:', error);
     res.status(500).json({ success: false, message: 'Server error', error });
   }
 });
-
 export default router;

@@ -4,6 +4,7 @@ const credentialSchema = new mongoose.Schema({
     credentialID: String,
     publicKey: String,
     counter: Number,
+    authenticatorType: String, // 'windows', 'android', etc.
     // transports: Array
 });
 
