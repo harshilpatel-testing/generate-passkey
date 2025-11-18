@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@simplewebauthn/server": "^13.2.2",
+    "base64url": "^3.0.1",
     "body-parse": "^0.1.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
