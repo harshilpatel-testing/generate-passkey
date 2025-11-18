@@ -18,7 +18,7 @@ function PasskeyTest() {
 
             const { data: options } = await axios.post(`${backendURL}/auth/generate-registration-options`, { username });
             console.log('Registration options:', options);
-            const attestationResponse = await startRegistration(options);
+            const attestationResponse = await startRegistration({ optionsJSON: options });
             const verifyRes = await axios.post(`${backendURL}/auth/verify-registration`, { username, attestationResponse });
             setMessage(verifyRes.data.success ? '✅ Registered successfully!' : '❌ Registration failed.');
         } catch (err) {
@@ -35,7 +35,7 @@ function PasskeyTest() {
             const { options } = data;
             console.log('Authentication options:', options);
 
-            const assertionResponse = await startAuthentication(options);
+            const assertionResponse = await startAuthentication({ optionsJSON: options });
             const verifyRes = await axios.post(`${backendURL}/auth/verify-authentication`, { username, assertionResponse });
             setMessage(verifyRes.data.success ? '🎉 Logged in successfully!' : '❌ Login failed.');
         } catch (err) {
