@@ -9,6 +9,8 @@ function PasskeyTest() {
     const [username, setUsername] = useState('');
     const [message, setMessage] = useState('');
 
+    const [loading, setLoading] = useState(false);
+
     const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
 
     // --- Registration ---
@@ -16,11 +18,14 @@ function PasskeyTest() {
         try {
             console.log('Requesting registration options for', username);
 
+            setLoading(true);
+            
             const { data: options } = await axios.post(`${backendURL}/auth/generate-registration-options`, { username });
             console.log('Registration options:', options);
             const attestationResponse = await startRegistration({ optionsJSON: options });
             const verifyRes = await axios.post(`${backendURL}/auth/verify-registration`, { username, attestationResponse });
             setMessage(verifyRes.data.success ? '✅ Registered successfully!' : '❌ Registration failed.');
+            setLoading(false);
         } catch (err) {
             setMessage('❌ Error: ' + err.message);
             console.log(err);
@@ -31,13 +36,15 @@ function PasskeyTest() {
     const handleLogin = async () => {
         try {
             console.log('Requesting registration options for', username);
+            setLoading(true);
             const { data } = await axios.post(`${backendURL}/auth/generate-authentication-options`, { username });
             const { options } = data;
             console.log('Authentication options:', options);
-
+            
             const assertionResponse = await startAuthentication({ optionsJSON: options });
             const verifyRes = await axios.post(`${backendURL}/auth/verify-authentication`, { username, assertionResponse });
             setMessage(verifyRes.data.success ? '🎉 Logged in successfully!' : '❌ Login failed.');
+            setLoading(false);
         } catch (err) {
             setMessage('❌ Error: ' + err.message);
             console.log(err);
@@ -60,6 +67,7 @@ function PasskeyTest() {
                 </button>
             </div>
             <p>{message}</p>
+            {loading && <p>Loading...</p>}
         </div>
     );
 }
